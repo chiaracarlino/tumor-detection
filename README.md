@@ -52,6 +52,7 @@ tumor-detection/
 │
 ├─ README.md
 └─ requirements.txt
+└─ app.py
 ```
 ---
 
@@ -78,6 +79,30 @@ pip install -r requirements.txt
 ### 3.3 Contenu du requirements.txt
 
 ```bash
+# Core
+numpy>=1.24.0
+pandas>=2.0.0
+matplotlib>=3.7.0
+Pillow>=10.0.0
+scikit-learn>=1.3.0
+
+# PyTorch
+torch>=2.2.0
+torchvision>=0.17.0
+
+# Notebook execution
+nbclient>=0.7.4
+nbformat>=5.9.0
+
+# Front-end
+streamlit>=1.22.0
+
+# Image processing
+opencv-python>=4.7.0
+
+# Utilities
+pathlib>=1.0.1
+tqdm
 ```
 
 ---
@@ -124,3 +149,18 @@ Grad-CAM : image IRM originale avec superposition d’une heatmap indiquant les 
 Toujours exécuter le pipeline dans l’ordre : exploration → analyse → Grad-CAM.
 Vérifier les dimensions des images avant le passage au modèle (512x512 recommandé).
 Sauvegarder les cartes Grad-CAM pour interprétation médicale.
+
+---
+
+## 7. Excécution
+
+```bash
+python -m streamlit run app.py
+```
+Affichage du front avec streamlite, 3 boutons permettant chaqu'un d'afficher l'image associée à chaque notebook :
+- Dataset Visualization
+- Analysis Visualization
+- Grad-CAM Result
+
+## Auteurs
+CARLINO Chiara, FINET Lucille, PAOLANTONI Jules
