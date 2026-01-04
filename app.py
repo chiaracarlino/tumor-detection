@@ -7,6 +7,9 @@ import torch
 from PIL import Image
 from torchvision import transforms
 import sys
+import torch.nn.functional as F
+import cv2
+import numpy as np
 
 # -------------------------
 # Config notebooks
@@ -42,6 +45,49 @@ def load_model(version=1):
     return model
 
 model = load_model(version=2)
+
+# ------------------------- 
+# Grad-CAM Class
+# -------------------------
+class GradCAM:
+    def __init__(self, model, target_layer):
+        self.model = model
+        self.target_layer = target_layer
+        self.gradients = None
+        self.activations = None
+        self._register_hooks()
+
+    def _register_hooks(self):
+        def forward_hook(module, input, output):
+            self.activations = output.detach()
+
+        def backward_hook(module, grad_in, grad_out):
+            self.gradients = grad_out[0].detach()
+
+        self.target_layer.register_forward_hook(forward_hook)
+        self.target_layer.register_backward_hook(backward_hook)
+
+    def generate(self, input_tensor, class_idx=None):
+        self.model.zero_grad()
+        output = self.model(input_tensor)
+
+        if class_idx is None:
+            class_idx = output.argmax(dim=1).item()
+
+        loss = output[:, class_idx]
+        loss.backward()
+
+        weights = self.gradients.mean(dim=(2, 3), keepdim=True)
+        cam = (weights * self.activations).sum(dim=1)
+
+        cam = F.relu(cam)
+        cam = cam.squeeze().cpu().numpy()
+
+        cam = cv2.resize(cam, (input_tensor.shape[3], input_tensor.shape[2]))
+        cam = cam - cam.min()
+        cam = cam / cam.max()
+
+        return cam
 
 # -------------------------
 # UI
@@ -105,7 +151,20 @@ with tab2:
         st.markdown("### Probabilités")
         for i, cls in enumerate(CLASSES):
             st.write(f"{cls} : {probs[0][i]:.2f}")
+        # Grad-CAM
+        st.markdown("### Grad-CAM (Carte de chaleur)")
+        grad_cam = GradCAM(model, model.layer4[-1])
+        cam = grad_cam.generate(input_tensor, pred)
 
+        # Superposer la heatmap sur l'image
+        img_np = np.array(image.resize((224, 224)))
+        heatmap = cv2.applyColorMap(np.uint8(255 * cam), cv2.COLORMAP_JET)
+        heatmap = np.float32(heatmap) / 255
+        superimposed_img = heatmap + np.float32(img_np) / 255
+        superimposed_img = superimposed_img / np.max(superimposed_img)
+        superimposed_img = np.uint8(255 * superimposed_img)
+
+        st.image(superimposed_img, caption="Image avec Grad-CAM", use_column_width=True)
         st.warning(
             "Cet outil est une aide à la décision et ne remplace pas un diagnostic médical."
         )
