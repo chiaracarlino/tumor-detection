@@ -127,7 +127,7 @@ with tab1:
 # ==========================================================
 with tab2:
     st.subheader("Test du modèle sur une image IRM")
-    st.write("Upload d’une image IRM jamais vue par le modèle")
+    st.write("Upload d'une image IRM jamais vue par le modèle")
 
     uploaded_file = st.file_uploader(
         "Choisir une image IRM",
@@ -136,7 +136,7 @@ with tab2:
 
     if uploaded_file:
         image = Image.open(uploaded_file).convert("RGB")
-        st.image(image, caption="Image IRM", use_column_width=True)
+        st.image(image, caption="Image IRM")
 
         input_tensor = transform(image).unsqueeze(0)
 
@@ -151,6 +151,7 @@ with tab2:
         st.markdown("### Probabilités")
         for i, cls in enumerate(CLASSES):
             st.write(f"{cls} : {probs[0][i]:.2f}")
+        
         # Grad-CAM
         st.markdown("### Grad-CAM (Carte de chaleur)")
         grad_cam = GradCAM(model, model.layer4[-1])
@@ -158,13 +159,24 @@ with tab2:
 
         # Superposer la heatmap sur l'image
         img_np = np.array(image.resize((224, 224)))
+        
+        # Convertir la CAM en heatmap colorée
         heatmap = cv2.applyColorMap(np.uint8(255 * cam), cv2.COLORMAP_JET)
+        heatmap = cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB)
         heatmap = np.float32(heatmap) / 255
-        superimposed_img = heatmap + np.float32(img_np) / 255
+        
+        # Superposer avec l'image originale
+        img_float = np.float32(img_np) / 255
+        superimposed_img = 0.6 * heatmap + 0.4 * img_float
         superimposed_img = superimposed_img / np.max(superimposed_img)
         superimposed_img = np.uint8(255 * superimposed_img)
 
-        st.image(superimposed_img, caption="Image avec Grad-CAM", use_column_width=True)
+        col1, col2 = st.columns(2)
+        with col1:
+            st.image(image.resize((224, 224)), caption="Image originale")
+        with col2:
+            st.image(superimposed_img, caption="Image avec Grad-CAM")
+        
         st.warning(
             "Cet outil est une aide à la décision et ne remplace pas un diagnostic médical."
         )
